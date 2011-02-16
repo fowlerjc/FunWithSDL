@@ -149,8 +149,8 @@ void input_mouseMove(int dx, int dy)
 	dx -= halfWinWidth; dy -= halfWinHeight;
 
 	//Feed the deltas to the camera
-	camera_rotateX(dy/2.0);
-	camera_rotateY(dx/2.0);
+	camera_rotateX(-dy/2.0);
+	camera_rotateY(-dx/2.0);
 
 	//Reset cursor to center
 	SDL_WarpMouse(halfWinWidth, halfWinHeight);
@@ -164,13 +164,13 @@ static void input_update()
 	//WASD
 	//The input values are arbitrary
 	if(keys_down[SDLK_w])
-		camera_translateForward(-0.01);
+		camera_translateForward(-0.05);
 	if(keys_down[SDLK_s])
-		camera_translateForward(0.01);
+		camera_translateForward(0.05);
 	if(keys_down[SDLK_a])
-		camera_translateStrafe(-0.01);
+		camera_translateStrafe(-0.05);
 	if(keys_down[SDLK_d])
-		camera_translateStrafe(0.01);
+		camera_translateStrafe(0.05);
 
 	//Reset, sometimes you can get pretty lost...
 	if(keys_down[SDLK_r])
@@ -232,6 +232,11 @@ static void camera_translateForward(float dist)
 	//about each cardinal axis, this representation must be converted
 	//to a cartesian vector.
 
+	//How do I convert the angles into a direction vector? Wouldn't it be
+	//be easier to have a point vector for the camera's position and a direction vector
+	//for it's direction at all times as opposed to trying to store it with angles.
+	//I don't really get it.
+
 	//The conversion will follow a similar pattern to your standard
 	//polar -> cartesian conversion, although this can be a little
 	//confusing since we are looking down the negative Z axis.
@@ -257,15 +262,20 @@ static void camera_translateForward(float dist)
 	//sin(90degrees)? cos(0degrees)? cos(90degrees)?
 	float dx, dy, dz;
 
+	float sinX, sinY, cosY;
+	sinX = sin(camera.angles_rad[_X]);
+	sinY = sin(camera.angles_rad[_Y]);
+	cosY = cos(camera.angles_rad[_Y]);
+
 	//Free
-	//dx =  ???;
-	//dy =  ???;
-	//dz =  ???;
+	dx =  sinY*dist;
+	dy =  -sinX*dist;
+	dz =  cosY*dist;
 
 	//Person
-	//dx =  ???;
-	//dy =  ???;
-	//dz =  ???;
+	//dx =  sinY*dist;
+	//dy =  0.0;
+	//dz =  cosY*dist;
 
 	camera.position[_X] += dx;
 	camera.position[_Y] += dy;
@@ -275,6 +285,21 @@ static void camera_translateForward(float dist)
 static void camera_translateStrafe(float dist)
 {
 	//This function will look very similar to your translateForward function.
+	//Here is the current body of translateForward.
+	//When the camera strafes there should be no forward or backward motion.
+	float dx, dy, dz;
+
+		float sinY, cosY;
+		sinY = sin(camera.angles_rad[_Y]);
+		cosY = cos(camera.angles_rad[_Y]);
+
+		dx =  cosY*dist;
+		dy =  0.0;
+		dz =  -sinY*dist;
+
+		camera.position[_X] += dx;
+		camera.position[_Y] += dy;
+		camera.position[_Z] += dz;
 }
 
 /*
@@ -346,13 +371,13 @@ static void r_setupModelview()
 	//1 5 9  13
 	//2 6 10 14
 	//3 7 11 15
-	sinX = sin(camera.angles_rad[_X]);
-	cosX = cos(camera.angles_rad[_X]);
+	sinX = sin(-camera.angles_rad[_X]);
+	cosX = cos(-camera.angles_rad[_X]);
 
-	//xRotMatrix[??] = ??;
-	//xRotMatrix[??] = ??;
-	//xRotMatrix[??] = ??;
-	//xRotMatrix[??] = ??;
+	xRotMatrix[5] = cosX;
+	xRotMatrix[6] = sinX;
+	xRotMatrix[9] = -sinX;
+	xRotMatrix[10] = cosX;
 
 	//Y rotation matrix from book (for multiplying row vectors rM = r')
 	//cos(r) 0 -sin(r) 0
@@ -369,13 +394,13 @@ static void r_setupModelview()
 	//1 5 9  13
 	//2 6 10 14
 	//3 7 11 15
-	sinY = sin(camera.angles_rad[_Y]);
-	cosY = cos(camera.angles_rad[_Y]);
+	sinY = sin(-camera.angles_rad[_Y]);
+	cosY = cos(-camera.angles_rad[_Y]);
 
-	//yRotMatrix[??] = ??;
-	//yRotMatrix[??] = ??;
-	//yRotMatrix[??] = ??;
-	//yRotMatrix[??] = ??;
+	yRotMatrix[0] = cosY;
+	yRotMatrix[2] = -sinY;
+	yRotMatrix[8] = sinY;
+	yRotMatrix[10] = cosY;
 
 	//Z rotation matrix from book (for multiplying row vectors rM = r')
 	// cos(r) sin(r) 0 0
@@ -392,13 +417,13 @@ static void r_setupModelview()
 	//1 5 9  13
 	//2 6 10 14
 	//3 7 11 15
-	sinZ = sin(camera.angles_rad[_Z]);
-	cosZ = cos(camera.angles_rad[_Z]);
+	sinZ = sin(-camera.angles_rad[_Z]);
+	cosZ = cos(-camera.angles_rad[_Z]);
 
-	//zRotMatrix[??] = ??;
-	//zRotMatrix[??] = ??;
-	//zRotMatrix[??] = ??;
-	//zRotMatrix[??] = ??;
+	zRotMatrix[0] = cosZ;
+	zRotMatrix[1] = sinZ;
+	zRotMatrix[4] = -sinZ;
+	zRotMatrix[5] = cosZ;
 
 	//Translation matrix from book (for multiplying row vectors rM = r')
 	//1 0 0 0
@@ -416,16 +441,16 @@ static void r_setupModelview()
 	//2 6 10 14
 	//3 7 11 15
 
-	//translateMatrix[??] = ??;
-	//translateMatrix[??] = ??;
-	//translateMatrix[??] = ??;
+	translateMatrix[12] = -camera.position[_X];
+	translateMatrix[13] = -camera.position[_Y];
+	translateMatrix[14] = -camera.position[_Z];
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	//glMultMatrixf(??);
-	//glMultMatrixf(??);
-	//glMultMatrixf(??);
-	//glMultMatrixf(??);
+	glMultMatrixf(xRotMatrix);
+	glMultMatrixf(yRotMatrix);
+	glMultMatrixf(zRotMatrix);
+	glMultMatrixf(translateMatrix);
 }
 
 /*
