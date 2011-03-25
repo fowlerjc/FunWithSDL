@@ -11,6 +11,8 @@ Description:	Texturing demo - you will need to change the path to the texture
 #include "headers/SDL/SDL.h"
 #include "headers/SDL/SDL_main.h"
 #include "headers/SDL/SDL_opengl.h"
+#include "headers/common.h"
+#include "headers/renderer_models.h"
 
 #include "headers/mathlib.h"
 #include <stdio.h>
@@ -47,6 +49,7 @@ static void camera_rotateY(float degree);
 static void camera_rotateZ(float degree);
 static void camera_translateForward(float dist);
 static void camera_translateStrafe(float dist);
+static void r_loadGameMeshes();
 
 //RENDERER DECLARATIONS
 
@@ -90,7 +93,7 @@ int SDL_main(int argc, char* argv[]){
 		return 1;
 	}
 
-	SDL_WM_SetCaption("Camera Demo", "Camera Demo");
+	SDL_WM_SetCaption("Skybox Demo", "Skybox Demo");
 	SDL_ShowCursor(SDL_DISABLE);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
@@ -198,6 +201,9 @@ static float xRotMatrix[16], yRotMatrix[16], zRotMatrix[16], translateMatrix[16]
 
 static void camera_init()
 {
+	VectorClear(camera.position);
+	VectorClear(camera.angles_deg);
+	VectorClear(camera.angles_rad);
 	glmatrix_identity(xRotMatrix);
 	glmatrix_identity(yRotMatrix);
 	glmatrix_identity(zRotMatrix);
@@ -282,8 +288,6 @@ static void camera_translateStrafe(float dist)
 */
 
 #define HEADER_SIZE 18
-
-typedef unsigned char byte;
 
 typedef struct
 {
@@ -409,7 +413,7 @@ static GLbyte* r_image_loadTGA(char *name, GLuint *glTexID, int *width, int *hei
 		}
 	}
 
-	/*Upload the texture to OpenGL
+	//Upload the texture to OpenGL
 	glGenTextures(1, glTexID);
 	glBindTexture(GL_TEXTURE_2D, *glTexID);
 
@@ -423,7 +427,6 @@ static GLbyte* r_image_loadTGA(char *name, GLuint *glTexID, int *width, int *hei
 	//Upload image data to OpenGL
 	glTexImage2D(GL_TEXTURE_2D, 0, type, *width, *height,
 			0, type, GL_UNSIGNED_BYTE, imageData);
-	*/
 
 	//Header debugging
 	/*
@@ -461,11 +464,14 @@ static void r_init()
 	//NEW TEXTURE STUFF
 	glEnable(GL_TEXTURE_2D);
 	//You might want to play with changing the modes
-	//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	//These functions load my custom textures.
 	//r_image_loadTGA("C:/Users/Cory/workspace/FunWithSDL/Debug/textures/uparrow.tga",
 	//		&myGLTexture, &myTexWidth, &myTexHeight, &myTexBPP);
+
+	//Testing
+	//"C:/Users/Cory/workspace/FunWithSDL/Debug/textures/face1.tga"
 	face1data = r_image_loadTGA("C:/Users/Cory/workspace/FunWithSDL/Debug/textures/face1.tga",
 			&face1, &face1Width, &face1Height, &face1BPP, &face1Type);
 	face2data = r_image_loadTGA("C:/Users/Cory/workspace/FunWithSDL/Debug/textures/face2.tga",
@@ -585,6 +591,7 @@ static void r_init()
 	camera_init();
 
 	r_setupProjection();
+	r_loadGameMeshes();
 }
 
 /*
@@ -642,6 +649,56 @@ static void r_setupModelview()
 	glMultMatrixf(translateMatrix);
 }
 
+//r_setupModelviewforSky
+//Does same as above but without translation.
+static void r_setupModelviewforSky()
+{
+	float sinX, cosX, sinY, cosY, sinZ, cosZ;
+
+	sinX = sin(-camera.angles_rad[_X]);
+	cosX = cos(-camera.angles_rad[_X]);
+
+	xRotMatrix[5]  = cosX;
+	xRotMatrix[6]  = sinX;
+	xRotMatrix[9]  = -sinX;
+	xRotMatrix[10] = cosX;
+
+	sinY = sin(-camera.angles_rad[_Y]);
+	cosY = cos(-camera.angles_rad[_Y]);
+
+	yRotMatrix[0]  =  cosY;
+	yRotMatrix[2]  = -sinY;
+	yRotMatrix[8]  =  sinY;
+	yRotMatrix[10] =  cosY;
+
+	sinZ = sin(-camera.angles_rad[_Z]);
+	cosZ = cos(-camera.angles_rad[_Z]);
+
+	zRotMatrix[0] = cosZ;
+	zRotMatrix[1] = sinZ;
+	zRotMatrix[4] = -sinZ;
+	zRotMatrix[5] = cosZ;
+
+	translateMatrix[12] = -camera.position[_X];
+	translateMatrix[13] = -camera.position[_Y];
+	translateMatrix[14] = -camera.position[_Z];
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glMultMatrixf(xRotMatrix);
+	glMultMatrixf(yRotMatrix);
+	glMultMatrixf(zRotMatrix);
+	//glMultMatrixf(translateMatrix);
+}
+
+/*
+ * r_loadGameMeshes
+ * Should allow the meshes to be loaded.
+ */
+static void r_loadGameMeshes(){
+	renderer_model_loadASE("C:/Users/Cory/workspace/FunWithSDL/Debug/models/skybox_stratosphere.ASE", efalse);
+}
+
 /*
  * r_drawFrame
  * Perform any drawing and setup necessary to produce a single frame.
@@ -653,7 +710,21 @@ static void r_drawFrame()
 	//Orient and position the camera
 	r_setupModelview();
 
+	//Draw sky?
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glPushMatrix();
+	glLoadIdentity();
+	r_setupModelviewforSky();
+	renderer_model_drawASE(0);
+	glPopMatrix();
+
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	//Texture stuff past this point.
 	glColor3f(1.0, 1.0, 1.0);
+
 
 	glBindTexture(GL_TEXTURE_2D, face1);
 	glBegin(GL_QUADS);
