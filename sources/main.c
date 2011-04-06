@@ -2,9 +2,9 @@
 ===========================================================================
 File:		main.c
 Author: 	Clinton Freeman
+Modified by: James Cory Fowler
 Created on:  	Feb 7, 2011
-Description:	Texturing demo - you will need to change the path to the texture
-		before this will work...
+Description:	Final project will include skybox, 3D models, and collision detection.
 ===========================================================================
 */
 
@@ -13,8 +13,8 @@ Description:	Texturing demo - you will need to change the path to the texture
 #include "headers/SDL/SDL_opengl.h"
 #include "headers/common.h"
 #include "headers/renderer_models.h"
-
 #include "headers/mathlib.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,7 +30,7 @@ static int user_exit = 0;
 static void input_keyDown(SDLKey k);
 static void input_keyUp(SDLKey k);
 static void input_mouseMove(int dx, int dy);
-static void input_update();
+static void input_update(int delta);
 
 //CAMERA DECLARATIONS
 
@@ -106,8 +106,19 @@ int SDL_main(int argc, char* argv[]){
 
 	r_init();
 
+
+	//Declaration of variables used in decoupling.
+	int currTime = SDL_GetTicks();
+	int prevTime = 0;
+
+	//THIS IS THE GAME LOOP! *********************************************
+
 	while(!user_exit)
 	{
+		//Set time counters to appropriate values for calculations.
+		prevTime = currTime;
+		currTime = SDL_GetTicks();
+
 		//Handle input
 		while(SDL_PollEvent(&event))
 		{
@@ -127,9 +138,11 @@ int SDL_main(int argc, char* argv[]){
 			}
 		}
 
-		input_update();
+		input_update(currTime - prevTime);
 		r_drawFrame();
 	}
+
+	//********************************************************************
 
 	SDL_Quit();
 	return 0;
@@ -169,18 +182,22 @@ void input_mouseMove(int dx, int dy)
 /*
  * input_update
  */
-static void input_update()
+static void input_update(int delta)
 {
+	double movement_mag = 0.01;
+	//This should be funny.
+	movement_mag = movement_mag * delta;
+
 	//WASD
 	//The input values are arbitrary
 	if(keys_down[SDLK_w])
-		camera_translateForward(0.05);
+		camera_translateForward(movement_mag);
 	if(keys_down[SDLK_s])
-		camera_translateForward(-0.05);
+		camera_translateForward(-movement_mag);
 	if(keys_down[SDLK_a])
-		camera_translateStrafe(0.05);
+		camera_translateStrafe(movement_mag);
 	if(keys_down[SDLK_d])
-		camera_translateStrafe(-0.05);
+		camera_translateStrafe(-movement_mag);
 
 	//Reset, sometimes you can get pretty lost...
 	if(keys_down[SDLK_r])
@@ -697,6 +714,7 @@ static void r_setupModelviewforSky()
  */
 static void r_loadGameMeshes(){
 	renderer_model_loadASE("C:/Users/Cory/workspace/FunWithSDL/Debug/models/skybox_stratosphere.ASE", efalse);
+	renderer_model_loadASE("C:/Users/Cory/workspace/FunWithSDL/Debug/models/fighter3.ASE", efalse);
 }
 
 /*
@@ -721,6 +739,9 @@ static void r_drawFrame()
 
 
 	glClear(GL_DEPTH_BUFFER_BIT);
+
+	//Draw fighter.
+	renderer_model_drawASE(1);
 
 	//Texture stuff past this point.
 	glColor3f(1.0, 1.0, 1.0);
