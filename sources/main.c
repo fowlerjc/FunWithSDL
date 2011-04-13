@@ -714,7 +714,7 @@ static void r_setupModelviewforSky()
  */
 static void r_loadGameMeshes(){
 	renderer_model_loadASE("C:/Users/Cory/workspace/FunWithSDL/Debug/models/skybox_stratosphere.ASE", efalse);
-	renderer_model_loadASE("C:/Users/Cory/workspace/FunWithSDL/Debug/models/fighter3.ASE", efalse);
+	renderer_model_loadASE("C:/Users/Cory/workspace/FunWithSDL/Debug/models/fighter.ASE", efalse);
 }
 
 /*
@@ -740,8 +740,12 @@ static void r_drawFrame()
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	//Draw fighter.
+	//Draw fighter. Needs to stay with the camera.
+	//Doesn't rotate. Only stays in the same position relative to camera.
+	glPushMatrix();
+	glLoadIdentity();
 	renderer_model_drawASE(1);
+	glPopMatrix();
 
 	//Texture stuff past this point.
 	glColor3f(1.0, 1.0, 1.0);
